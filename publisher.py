@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import rospy
-from std_msgs.msg import Int32MultiArray
+from std_msgs.msg import Int16MultiArray
 import sys, select, termios, tty
 
 
@@ -59,12 +59,12 @@ def checkACCELLLimitVelocity(speed):
 
 
 def main():
-    pub = rospy.Publisher('controller', Int32MultiArray, queue_size=10)
+    pub = rospy.Publisher('controller', Int16MultiArray, queue_size=10)
     rospy.init_node('roscar_teleop', anonymous=True)
 
-    teleop_int = Int32MultiArray()
-    teleop_int.data = [0, 0]
-    # teleop_int.data = [0, 0, 0, 0]
+    data_output = Int16MultiArray()
+    data_output.data = [0, 0]
+    # data_output.data = [0, 0, 0, 0]
 
     L_speed = min_speed
     R_speed = min_speed
@@ -104,28 +104,34 @@ def main():
                 L_speed = checkACCELLLimitVelocity(L_speed)
                 print(vels(L_speed, R_speed))
             elif key == 'x' or key == ' ':
-                L_speed = min_speed
-                R_speed = min_speed
+                L_speed = 0
+                R_speed = 0
                 print(vels(L_speed, R_speed))
+        # let speed stay above min_speed always
             elif L_speed > max_speed:
                 L_speed = max_speed
             elif L_speed < min_speed:
                 L_speed = min_speed
+            elif R_speed > max_speed:
+                R_speed = max_speed
+            elif R_speed < min_speed:
+                R_speed = min_speed
+        # ctl+c to close
             else:
                 if (key == '\x03'):
                     break
-
-            teleop_int.data[0] = L_speed
-            teleop_int.data[1] = R_speed
-            # teleop_int.data[3] = L_speed
-            # teleop_int.data[4] = R_speed
-            pub.publish(teleop_int)
+        # data output
+            data_output.data[0] = L_speed
+            data_output.data[1] = R_speed
+            # data_output.data[3] = L_speed
+            # data_output.data[4] = R_speed
+            pub.publish(data_output)
 
     except rospy.ROSInterruptException:
         pass
 
-    finally:
-        pub.publish(teleop_int)
+    finally:  # code publish
+        pub.publish(data_output)
 
     termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
 
