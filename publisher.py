@@ -5,7 +5,7 @@ import sys, select, termios, tty
 
 
 max_speed = 255
-min_speed = 159
+min_speed = 128
 
 msg = """
 ---------------------------
