@@ -4,30 +4,26 @@ from std_msgs.msg import Int32MultiArray
 import sys, select, termios, tty
 
 
-ROSCAR_MAX_ACCELL_VEL = 255
-ROSCAR_MAX_STEERING_VEL = 180
-
-ROSCAR_MIN_ACCELL_VEL = 159
-ROSCAR_MIN_STEERING_VEL = 0
+max_speed = 255
+min_speed = 159
 
 msg = """
 ---------------------------
 Moving around:
   w
 a s d
-  x
 
-w/x : increase/decrease accell velocity
-a/d : increase/decrease steering velocity
-space key, s : force stop
-CTRL-C to quit
+w/s : increase/decrease speed
+a/d : increase/decrease L or R speed
+space key, x : stop
+CTRL-C : quit
 """
 
 e = """
 Communications Failed
 """
 
-
+settings = termios.tcgetattr(sys.stdin)
 def getKey():
     tty.setraw(sys.stdin.fileno())
     rlist, _, _ = select.select([sys.stdin], [], [], 0.1)
@@ -40,9 +36,9 @@ def getKey():
     return key
 
 
-def vels(target_accell_vel, target_angular_vel):
+def vels(L_speed, R_speed):
 
-    return "currently:\taccell vel %s\t steering vel %s " % (target_accell_vel, target_steering_vel)
+    return f"L : {L_speed}       R : {R_speed}"
 
 
 def constrain(input, low, high):
@@ -56,76 +52,73 @@ def constrain(input, low, high):
     return input
 
 
-def checkACCELLLimitVelocity(vel):
-    vel = constrain(vel, -ROSCAR_MIN_ACCELL_VEL, ROSCAR_MAX_ACCELL_VEL)
+def checkACCELLLimitVelocity(speed):
+    vel = constrain(speed, -min_speed, max_speed)
 
     return vel
 
 
-def checkSTEERINGLimitVelocity(vel):
-    vel = constrain(vel, -ROSCAR_MIN_STEERING_VEL, ROSCAR_MAX_STEERING_VEL)
-
-    return vel
-
-
-if __name__ == '__main__':
-    settings = termios.tcgetattr(sys.stdin)
-
+def main():
     pub = rospy.Publisher('controller', Int32MultiArray, queue_size=10)
     rospy.init_node('roscar_teleop', anonymous=True)
 
     teleop_int = Int32MultiArray()
     teleop_int.data = [0, 0]
+    # teleop_int.data = [0, 0, 0, 0]
 
-    status = 0
-    target_accell_vel = 0
-    target_steering_vel = 0
+    L_speed = min_speed
+    R_speed = min_speed
 
     try:
         print(msg)
         while (1):
             key = getKey()
             if key == 'w':
-                target_accell_vel += 1
-                target_accell_vel = checkACCELLLimitVelocity(target_accell_vel)
-                status = status + 1
-                print(vels(target_accell_vel, target_steering_vel))
+                if L_speed == R_speed:                    
+                    L_speed += 2
+                    R_speed += 2
+                else:
+                    sync_speed = max(L_speed, R_speed)
+                    L_speed = sync_speed
+                    R_speed = sync_speed
+                L_speed = checkACCELLLimitVelocity(L_speed)
+                R_speed = checkACCELLLimitVelocity(R_speed)
+                print(vels(L_speed, R_speed))
             elif key == 's':
-                target_accell_vel -= 1
-                target_accell_vel = checkACCELLLimitVelocity(target_accell_vel)
-                status = status + 1
-                print(vels(target_accell_vel, target_steering_vel))
+                if L_speed == R_speed:
+                    L_speed -= 2
+                    R_speed -= 2
+                else:
+                    sync_speed = max(L_speed, R_speed)
+                    L_speed = sync_speed
+                    R_speed = sync_speed
+                L_speed = checkACCELLLimitVelocity(L_speed)
+                R_speed = checkACCELLLimitVelocity(R_speed)
+                print(vels(L_speed, R_speed))
             elif key == 'a':
-                target_steering_vel -= 1
-                target_steering_vel = checkSTEERINGLimitVelocity(target_steering_vel)
-                status = status + 1
-                print(vels(target_accell_vel, target_steering_vel))
+                R_speed += 4
+                R_speed = checkACCELLLimitVelocity(R_speed)
+                print(vels(L_speed, R_speed))
             elif key == 'd':
-                target_steering_vel += 1
-                target_steering_vel = checkSTEERINGLimitVelocity(target_steering_vel)
-                status = status + 1
-                print(vels(target_accell_vel, target_steering_vel))
-            elif key == ' ' or key == 's':
-                target_accell_vel = 0
-                target_steering_vel = 0
-                print(vels(target_accell_vel, target_steering_vel))
-            elif key == 'x':
-                target_steering_vel = 0
-                status = status + 1
-                print(vels(target_accell_vel, target_steering_vel))
-            elif target_accell_vel > 255:
-                target_accell_vel = 254
-            elif target_accell_vel < 0:
-                target_accell_vel = 1
+                L_speed += 4
+                L_speed = checkACCELLLimitVelocity(L_speed)
+                print(vels(L_speed, R_speed))
+            elif key == 'x' or key == ' ':
+                L_speed = min_speed
+                R_speed = min_speed
+                print(vels(L_speed, R_speed))
+            elif L_speed > max_speed:
+                L_speed = max_speed
+            elif L_speed < min_speed:
+                L_speed = min_speed
             else:
                 if (key == '\x03'):
                     break
-                if status == 20:
-                    print(msg)
-            status = 0
 
-            teleop_int.data[0] = target_accell_vel
-            teleop_int.data[1] = target_steering_vel
+            teleop_int.data[0] = L_speed
+            teleop_int.data[1] = R_speed
+            # teleop_int.data[3] = L_speed
+            # teleop_int.data[4] = R_speed
             pub.publish(teleop_int)
 
     except rospy.ROSInterruptException:
@@ -134,4 +127,8 @@ if __name__ == '__main__':
     finally:
         pub.publish(teleop_int)
 
-        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
+    termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
+
+
+if __name__ == '__main__':
+    main()
