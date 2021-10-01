@@ -108,7 +108,6 @@ void Motor(int ls, int rs) {
     Buzzer(0);
     analogWrite(l_speed, ls);
     analogWrite(r_speed, rs);
-//  ros::ROS_INFO("state: %d, data: %d", state, speed);
 }
 
 void controller (const std_msgs::Int16MultiArray keystroke) {
@@ -117,6 +116,8 @@ void controller (const std_msgs::Int16MultiArray keystroke) {
     int minSpeed = 159;
     int ls;
     int rs;
+    
+    ROS_INFO("ls: %d, rs: %d", ls, rs);
 
     Motor(ls, rs);
 }
