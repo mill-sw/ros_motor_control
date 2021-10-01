@@ -92,7 +92,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <ros.h>
-#include <std_msgs/Int16MultiArray.h>
+#include <std_msgs/UInt16MultiArray.h>
 
 const int l_speed = 10;
 const int l_motor = 12;
@@ -110,13 +110,11 @@ void Motor(int ls, int rs) {
     analogWrite(r_speed, rs);
 }
 
-void controller (const std_msgs::Int16MultiArray keystroke) {
-    char l_s = keystroke.data[0];
-    char r_s = keystroke.data[1];
+void controller (const std_msgs::UInt16MultiArray keystroke) {
+    int ls = keystroke.data[0];
+    int rs = keystroke.data[1];
     int minSpeed = 159;
-    int ls;
-    int rs;
-    
+
     ROS_INFO("ls: %d, rs: %d", ls, rs);
 
     Motor(ls, rs);
@@ -159,7 +157,7 @@ void Led() {
 }
 
 ros::NodeHandle nh;
-ros::Subscriber <std_msgs::String> sub("controller", controller);
+ros::Subscriber <std_msgs::UInt16MultiArray> sub("controller", controller);
 //ros::Subscriber sub("cmd_vel", cmd_vel_cb);  // for teleop
 
 void setup() {
