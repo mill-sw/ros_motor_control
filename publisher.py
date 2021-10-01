@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 import rospy
-from std_msgs.msg import Int16MultiArray
+from std_msgs.msg import UInt16MultiArray
 import sys, select, termios, tty
 
 
 max_speed = 255
-min_speed = 64
+min_speed = 96
+stop = 0
 
 msg = """
----------------------------
-Moving around:
   w
 a s d
 
@@ -17,6 +16,7 @@ w/s : increase/decrease speed
 a/d : increase/decrease L or R speed
 space key, x : stop
 CTRL-C : quit
+================================================================================
 """
 
 e = """
@@ -41,33 +41,27 @@ def vels(L_speed, R_speed):
     return f"L : {L_speed}       R : {R_speed}"
 
 
-def constrain(input, low, high):
-    if input < low:
-        input = low
-    elif input > high:
-        input = high
+def constrain(input, min_speed, max_speed):
+    if input < min_speed:
+        input = min_speed
+    elif input > max_speed:
+        input = max_speed
     else:
         input = input
 
     return input
 
 
-def checkACCELLLimitVelocity(speed):
-    vel = constrain(speed, -min_speed, max_speed)
-
-    return vel
-
-
 def main():
-    pub = rospy.Publisher('controller', Int16MultiArray, queue_size=10)
+    pub = rospy.Publisher('controller', UInt16MultiArray, queue_size=10)
     rospy.init_node('roscar_teleop', anonymous=True)
 
-    data_output = Int16MultiArray()
+    data_output = UInt16MultiArray()
     data_output.data = [0, 0]
     # data_output.data = [0, 0, 0, 0]
 
-    L_speed = min_speed
-    R_speed = min_speed
+    L_speed = stop
+    R_speed = stop
 
     try:
         print(msg)
@@ -81,8 +75,8 @@ def main():
                     sync_speed = max(L_speed, R_speed)
                     L_speed = sync_speed
                     R_speed = sync_speed
-                L_speed = checkACCELLLimitVelocity(L_speed)
-                R_speed = checkACCELLLimitVelocity(R_speed)
+                L_speed = constrain(L_speed, min_speed, max_speed)
+                R_speed = constrain(R_speed, min_speed, max_speed)
                 print(vels(L_speed, R_speed))
             elif key == 's':
                 if L_speed == R_speed:
@@ -92,16 +86,16 @@ def main():
                     sync_speed = max(L_speed, R_speed)
                     L_speed = sync_speed
                     R_speed = sync_speed
-                L_speed = checkACCELLLimitVelocity(L_speed)
-                R_speed = checkACCELLLimitVelocity(R_speed)
+                L_speed = constrain(L_speed, min_speed, max_speed)
+                R_speed = constrain(R_speed, min_speed, max_speed)
                 print(vels(L_speed, R_speed))
             elif key == 'a':
                 R_speed += 4
-                R_speed = checkACCELLLimitVelocity(R_speed)
+                R_speed = constrain(R_speed, min_speed, max_speed)
                 print(vels(L_speed, R_speed))
             elif key == 'd':
                 L_speed += 4
-                L_speed = checkACCELLLimitVelocity(L_speed)
+                L_speed = constrain(L_speed, min_speed, max_speed)
                 print(vels(L_speed, R_speed))
             elif key == 'x' or key == ' ':
                 L_speed = 0
@@ -111,11 +105,11 @@ def main():
             elif L_speed > max_speed:
                 L_speed = max_speed
             elif L_speed < min_speed:
-                L_speed = min_speed
+                L_speed = stop
             elif R_speed > max_speed:
                 R_speed = max_speed
             elif R_speed < min_speed:
-                R_speed = min_speed
+                R_speed = stop
         # ctl+c to close
             else:
                 if (key == '\x03'):
