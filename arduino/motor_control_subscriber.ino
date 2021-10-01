@@ -113,7 +113,6 @@ void Motor(int ls, int rs) {
 void controller (const std_msgs::UInt16MultiArray keystroke) {
     int ls = keystroke.data[0];
     int rs = keystroke.data[1];
-    int minSpeed = 159;
 
     ROS_INFO("ls: %d, rs: %d", ls, rs);
 
