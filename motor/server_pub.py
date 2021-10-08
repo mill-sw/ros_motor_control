@@ -126,7 +126,6 @@ def main():
 
     finally:  # code publish
         pub.publish(data_output)
-
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
 
 
