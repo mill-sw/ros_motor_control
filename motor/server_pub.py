@@ -127,7 +127,7 @@ def main():
     finally:  # code publish
         pub.publish(data_output)
 
-    termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
 
 
 if __name__ == '__main__':
